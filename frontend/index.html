@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Template Fastify - Painel</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>ERP API - Painel de Simulação</h1>
+      <section class="card">
+        <h2>Configuração</h2>
+        <label for="apiBaseUrl">Base URL da API</label>
+        <input id="apiBaseUrl" value="http://localhost:3000" />
+        <button id="saveApiUrlBtn" type="button">Salvar URL</button>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Clientes</h2>
+          <form id="createCustomerForm">
+            <input name="name" placeholder="Nome" required />
+            <input name="phone" placeholder="Telefone" required />
+            <input name="cpfCnpj" placeholder="CPF/CNPJ" required />
+            <input name="street" placeholder="Rua" required />
+            <input name="number" placeholder="Numero" required />
+            <input name="district" placeholder="Bairro" required />
+            <input name="city" placeholder="Cidade" required />
+            <input name="state" placeholder="UF (ex: SP)" required />
+            <input name="zipCode" placeholder="CEP" required />
+            <button type="submit">Criar cliente</button>
+          </form>
+          <form id="findCustomerByPhoneForm">
+            <input name="phone" placeholder="Telefone" required />
+            <button type="submit">Buscar por telefone</button>
+          </form>
+          <form id="listCustomerOrdersForm">
+            <input name="customerId" placeholder="ID do cliente" required />
+            <button type="submit">Pedidos do cliente</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Produtos</h2>
+          <form id="createProductForm">
+            <input name="code" placeholder="Codigo/SKU" required />
+            <input name="name" placeholder="Nome" required />
+            <input name="basicDescription" placeholder="Descrição básica" required />
+            <input name="fullDescription" placeholder="Descrição completa" required />
+            <input name="ncm" placeholder="NCM" required />
+            <input name="imageUrl" placeholder="URL da imagem" />
+            <input name="salePrice" type="number" min="0" step="0.01" placeholder="Preço de venda" required />
+            <input name="productionCost" type="number" min="0" step="0.01" placeholder="Custo de produção" required />
+            <input name="stock" type="number" min="0" step="1" placeholder="Estoque" required />
+            <button type="submit">Criar produto</button>
+          </form>
+          <form id="updateProductForm">
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="name" placeholder="Nome (opcional)" />
+            <input name="salePrice" type="number" min="0" step="0.01" placeholder="Preço (opcional)" />
+            <input name="stock" type="number" min="0" step="1" placeholder="Estoque (opcional)" />
+            <button type="submit">Editar produto</button>
+          </form>
+          <form id="deleteProductForm">
+            <input name="productId" placeholder="ID do produto" required />
+            <button type="submit">Remover produto</button>
+          </form>
+          <button id="listProductsBtn" type="button">Listar produtos</button>
+        </article>
+
+        <article class="card">
+          <h2>Orçamentos e Pedidos</h2>
+          <form id="createQuoteForm">
+            <input name="customerId" placeholder="ID do cliente" required />
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="quantity" type="number" min="1" step="1" placeholder="Quantidade" required />
+            <input name="discount" type="number" min="0" step="0.01" placeholder="Desconto (opcional)" />
+            <button type="submit">Criar orçamento</button>
+          </form>
+          <form id="approveQuoteForm">
+            <input name="quoteId" placeholder="ID do orçamento" required />
+            <button type="submit">Aprovar e converter</button>
+          </form>
+          <form id="createOrderForm">
+            <input name="customerId" placeholder="ID do cliente" required />
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="quantity" type="number" min="1" step="1" placeholder="Quantidade" required />
+            <button type="submit">Criar pedido</button>
+          </form>
+          <form id="addOrderItemForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="quantity" type="number" min="1" step="1" placeholder="Quantidade" required />
+            <button type="submit">Adicionar item</button>
+          </form>
+          <form id="listOrdersByCustomerForm">
+            <input name="customerId" placeholder="ID do cliente" required />
+            <button type="submit">Pedidos por cliente</button>
+          </form>
+          <form id="updateLogisticStatusForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <select name="logisticStatus" required>
+              <option value="open">open</option>
+              <option value="production">production</option>
+              <option value="delivered">delivered</option>
+            </select>
+            <button type="submit">Atualizar logística</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Pagamento, Financeiro e Fiscal</h2>
+          <form id="payOrderForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <button type="submit">Pagar pedido</button>
+          </form>
+          <form id="getFinanceForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <button type="submit">Ver financeiro</button>
+          </form>
+          <form id="getFiscalForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <button type="submit">Ver fiscal</button>
+          </form>
+          <button id="listInventoryBtn" type="button">Listar estoque</button>
+          <form id="updateInventoryForm">
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="stock" type="number" min="0" step="1" placeholder="Novo estoque" required />
+            <button type="submit">Ajustar estoque</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Gestão</h2>
+          <button id="dashboardBtn" type="button">Dashboard</button>
+          <button id="salesReportBtn" type="button">Relatório vendas</button>
+          <button id="delinquencyReportBtn" type="button">Relatório inadimplência</button>
+          <button id="productsReportBtn" type="button">Relatório produtos</button>
+        </article>
+
+        <article class="card">
+          <h2>Bot API</h2>
+          <form id="botAssistForm">
+            <input name="message" placeholder="Mensagem para o bot" required />
+            <button type="submit">Bot assistente</button>
+          </form>
+          <form id="botListProductsForm">
+            <input name="page" type="number" min="1" step="1" placeholder="Página" />
+            <input name="limit" type="number" min="1" step="1" placeholder="Limite" />
+            <button type="submit">Bot listar produtos</button>
+          </form>
+          <form id="botCreateCustomerForm">
+            <input name="phone" placeholder="Telefone cliente" required />
+            <input name="name" placeholder="Nome" required />
+            <button type="submit">Bot criar/atualizar cliente</button>
+          </form>
+          <form id="botCreateQuoteForm">
+            <input name="phone" placeholder="Telefone cliente" required />
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="quantity" type="number" min="1" step="1" placeholder="Quantidade" required />
+            <button type="submit">Bot criar orçamento</button>
+          </form>
+          <form id="botApproveQuoteForm">
+            <input name="quoteId" placeholder="ID do orçamento" required />
+            <button type="submit">Bot aprovar orçamento</button>
+          </form>
+          <form id="botCreateOrderForm">
+            <input name="phone" placeholder="Telefone cliente" required />
+            <input name="productId" placeholder="ID do produto" required />
+            <input name="quantity" type="number" min="1" step="1" placeholder="Quantidade" required />
+            <button type="submit">Bot criar pedido</button>
+          </form>
+          <form id="botCheckoutOrderForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <button type="submit">Bot checkout</button>
+          </form>
+          <form id="botPayOrderForm">
+            <input name="orderId" placeholder="ID do pedido" required />
+            <button type="submit">Bot pagar pedido</button>
+          </form>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Resposta</h2>
+        <pre id="output"></pre>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
