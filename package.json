@@ -9,6 +9,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "seed": "tsx scripts/seed-data.ts",
+    "seed:sales": "tsx scripts/seed-random-sales.ts",
     "test:watch": "vitest",
     "lint": "eslint .",
     "docker:up": "docker compose up -d",

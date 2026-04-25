@@ -12,7 +12,6 @@ const chatName = document.getElementById("chatName");
 const chatMessageInput = document.getElementById("chatMessageInput");
 const sendChatBtn = document.getElementById("sendChatBtn");
 
-let salesChart;
 let productsChart;
 
 const savedBaseUrl = localStorage.getItem("apiBaseUrl");
@@ -91,9 +90,8 @@ async function refreshProductsTable() {
 }
 
 async function refreshDashboard() {
-  const [dashboard, sales, products] = await Promise.all([
+  const [dashboard, products] = await Promise.all([
     requestApi("/management/dashboard"),
-    requestApi("/management/reports/sales"),
     requestApi("/management/reports/products")
   ]);
 
@@ -102,19 +100,8 @@ async function refreshDashboard() {
   document.getElementById("metricPending").textContent = dashboard.pendingFinance;
   document.getElementById("metricLowStock").textContent = dashboard.lowStockProducts;
 
-  const salesLabels = sales.map((item) => `${item._id.month}/${item._id.year}`);
-  const salesValues = sales.map((item) => item.totalAmount);
   const productsLabels = products.slice(0, 8).map((item) => item.name);
   const productsValues = products.slice(0, 8).map((item) => item.quantitySold);
-
-  if (salesChart) salesChart.destroy();
-  salesChart = new Chart(document.getElementById("salesChart"), {
-    type: "line",
-    data: {
-      labels: salesLabels,
-      datasets: [{ label: "Vendas", data: salesValues, borderColor: "#3b82f6", tension: 0.2 }]
-    }
-  });
 
   if (productsChart) productsChart.destroy();
   productsChart = new Chart(document.getElementById("productsChart"), {

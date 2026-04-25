@@ -42,7 +42,8 @@ Serviços:
 
 Na primeira execução, o serviço `ollama-init` baixa o modelo definido em `AI_MODEL`.
 Isso pode levar alguns minutos dependendo da internet e hardware.
-O serviço `seed` também roda automaticamente na inicialização do Docker para cadastrar os dados de exemplo (clientes e produtos) antes da API subir.
+O serviço `seed` também roda automaticamente na inicialização do Docker para cadastrar os dados de exemplo (clientes, produtos, pedidos pagos e pedidos pendentes) antes da API subir.
+Com isso, o dashboard e relatórios já iniciam com dados úteis para demonstração.
 
 ### IA local (Ollama)
 
@@ -466,6 +467,7 @@ console.log(data.reply);
 npm run build
 npm test
 npm run seed
+npm run seed:sales
 npm run docker:up
 npm run docker:down
 npm run docker:reset-all

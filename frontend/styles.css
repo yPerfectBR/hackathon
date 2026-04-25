@@ -83,3 +83,7 @@ body {
   background: #334155;
   color: #e2e8f0;
 }
+
+#productsChart {
+  min-height: 340px;
+}

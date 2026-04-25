@@ -474,4 +474,15 @@ describe("Template API", () => {
     expect(response.status).toBe(200);
     expect(response.body.reply).toContain("adicionado(s) ao carrinho");
   });
+
+  it("deve responder mensagem sem barra de forma conversacional", async () => {
+    const response = await request(app.server).post("/chat/mock-whatsapp/message").send({
+      phone: "5511997000111",
+      name: "Cliente Bom Dia",
+      message: "bom dia"
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.reply).toContain("Posso te ajudar");
+  });
 });

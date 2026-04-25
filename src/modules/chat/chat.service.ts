@@ -73,6 +73,10 @@ export class ChatService {
     return /\b(ele|esse|essa|isso|este|esta|o mesmo|a mesma)\b/.test(message);
   }
 
+  private isGreeting(message: string) {
+    return /\b(oi|ola|olá|bom dia|boa tarde|boa noite|tudo bem)\b/.test(message);
+  }
+
   private extractQuantity(message: string) {
     const quantityMatch = message.match(
       /(?:^|\s)(\d{1,3})\s*(?:x|unidade(?:s)?|unid|pcs?)\b|quantidade\s*(\d{1,3})/i
@@ -561,7 +565,11 @@ export class ChatService {
       return `${this.shortProductPitch(product)} Se quiser, diga: "quero comprar".`;
     }
 
-    return "Não encontrei produto relacionado no cadastro. Digite /catalogo para ver opções.";
+    if (this.isGreeting(normalizedMessage)) {
+      return "Olá! Posso te ajudar com produtos, carrinho e pedidos. Se quiser ver opções, digite /catalogo.";
+    }
+
+    return "Não encontrei esse produto. Se quiser, digite /catalogo ou me fale o nome exato do item.";
   }
 
   async handleMockWhatsAppMessage(input: ChatMessageInput) {
