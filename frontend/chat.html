@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Bot - Teste</title>
+    <style>
+      * { box-sizing: border-box; font-family: sans-serif; }
+      body { margin: 0; background: #0f172a; color: #e2e8f0; }
+      .wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+      .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+      .row { display: grid; gap: 8px; grid-template-columns: 1fr 1fr 1fr auto; }
+      .row-chat { display: grid; gap: 8px; grid-template-columns: 1fr auto; }
+      input, button { border-radius: 8px; border: 1px solid #475569; padding: 10px; font-size: 14px; background: #0f172a; color: #e2e8f0; }
+      button { cursor: pointer; background: #2563eb; border-color: #1d4ed8; }
+      button:hover { background: #1d4ed8; }
+      #messages { min-height: 380px; max-height: 60vh; overflow: auto; padding: 12px; border-radius: 8px; background: #020617; display: grid; gap: 10px; }
+      .msg { max-width: 80%; padding: 10px 12px; border-radius: 10px; white-space: pre-wrap; }
+      .user { justify-self: end; background: #1d4ed8; }
+      .bot { justify-self: start; background: #334155; }
+      .meta { opacity: 0.7; font-size: 12px; margin-top: 2px; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Chat de Teste do Bot</h1>
+      <section class="card">
+        <div class="row">
+          <input id="apiBaseUrl" value="http://localhost:3000" placeholder="Base URL API" />
+          <input id="phone" value="5511999999999" placeholder="Telefone" />
+          <input id="name" value="Cliente Teste" placeholder="Nome" />
+          <button id="saveBtn" type="button">Salvar</button>
+        </div>
+        <div class="meta">Comandos: /help, /catalogo, /meuspedidos, /orcamento &lt;produtoId&gt; &lt;qtd&gt;, /aprovar &lt;quoteId&gt;, /pagar &lt;orderId&gt;, /status &lt;orderId&gt;. Mensagens sem &quot;/&quot; vão para a IA.</div>
+      </section>
+
+      <section class="card">
+        <div id="messages"></div>
+      </section>
+
+      <section class="card">
+        <div class="row-chat">
+          <input id="messageInput" placeholder="Digite sua mensagem..." />
+          <button id="sendBtn" type="button">Enviar</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const apiBaseUrl = document.getElementById("apiBaseUrl");
+      const phone = document.getElementById("phone");
+      const nameInput = document.getElementById("name");
+      const saveBtn = document.getElementById("saveBtn");
+      const messages = document.getElementById("messages");
+      const messageInput = document.getElementById("messageInput");
+      const sendBtn = document.getElementById("sendBtn");
+
+      const storedApi = localStorage.getItem("chatApiBaseUrl");
+      const storedPhone = localStorage.getItem("chatPhone");
+      const storedName = localStorage.getItem("chatName");
+      if (storedApi) apiBaseUrl.value = storedApi;
+      if (storedPhone) phone.value = storedPhone;
+      if (storedName) nameInput.value = storedName;
+
+      function saveConfig() {
+        localStorage.setItem("chatApiBaseUrl", apiBaseUrl.value.trim());
+        localStorage.setItem("chatPhone", phone.value.trim());
+        localStorage.setItem("chatName", nameInput.value.trim());
+      }
+
+      function appendMessage(role, text) {
+        const div = document.createElement("div");
+        div.className = `msg ${role}`;
+        div.textContent = text;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      async function sendMessage() {
+        const text = messageInput.value.trim();
+        if (!text) return;
+        saveConfig();
+        appendMessage("user", text);
+        messageInput.value = "";
+
+        try {
+          const response = await fetch(`${apiBaseUrl.value.trim()}/chat/mock-whatsapp/message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: phone.value.trim(),
+              name: nameInput.value.trim(),
+              message: text
+            })
+          });
+          const body = await response.json();
+          if (!response.ok) {
+            appendMessage("bot", `Erro ${response.status}: ${body.message || "Falha na requisição"}`);
+            return;
+          }
+          appendMessage("bot", body.reply || "Sem resposta");
+        } catch (error) {
+          appendMessage("bot", `Erro de conexão: ${String(error)}`);
+        }
+      }
+
+      saveBtn.addEventListener("click", saveConfig);
+      sendBtn.addEventListener("click", sendMessage);
+      messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void sendMessage();
+        }
+      });
+    </script>
+  </body>
+</html>

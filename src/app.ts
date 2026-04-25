@@ -4,6 +4,7 @@ import sensible from "@fastify/sensible";
 import Fastify from "fastify";
 import { ZodError } from "zod";
 import { botRoutes } from "./modules/bot/bot.routes";
+import { chatRoutes } from "./modules/chat/chat.routes";
 import { customerRoutes } from "./modules/customer/customer.routes";
 import { financeRoutes } from "./modules/finance/finance.routes";
 import { fiscalRoutes } from "./modules/fiscal/fiscal.routes";
@@ -23,6 +24,12 @@ export function buildApp() {
     global: false
   });
 
+  app.get("/", async () => ({
+    name: "ERP API",
+    status: "online",
+    health: "/health",
+    dashboard: "/management/dashboard"
+  }));
   app.get("/health", async () => ({ status: "ok" }));
   void app.register(productRoutes, { prefix: "/products" });
   void app.register(customerRoutes, { prefix: "/customers" });
@@ -33,6 +40,7 @@ export function buildApp() {
   void app.register(fiscalRoutes, { prefix: "/fiscal" });
   void app.register(inventoryRoutes, { prefix: "/inventory" });
   void app.register(managementRoutes, { prefix: "/management" });
+  void app.register(chatRoutes, { prefix: "/chat" });
   void app.register(
     async (botApp) => {
       await botApp.register(botRoutes, { prefix: "/bot" });

@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from "fastify";
+import { ChatService } from "../chat/chat.service";
 import { parsePagination } from "../../shared/pagination";
 import { CustomerRepository } from "../customer/customer.repository";
 import { CustomerService } from "../customer/customer.service";
@@ -21,6 +22,7 @@ import {
 } from "./bot.schemas";
 
 export const botRoutes: FastifyPluginAsync = async (app) => {
+  const chatService = new ChatService();
   const customerService = new CustomerService(new CustomerRepository());
   const productService = new ProductService(new ProductRepository());
   const inventoryService = new InventoryService();
@@ -69,26 +71,20 @@ export const botRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post("/assist", async (request, reply) => {
-    const body = request.body as { message?: string } | undefined;
-    const message = body?.message?.toLowerCase() ?? "";
-    if (message.includes("produto") || message.includes("catalogo")) {
-      const { items } = await productService.findPaginated(0, 5);
-      return reply.send({
-        reply: "Posso te ajudar com nosso catálogo. Aqui estão alguns produtos:",
-        products: items.map((item) => ({
-          id: item._id,
-          name: item.name,
-          price: item.salePrice
-        }))
-      });
+    const body = request.body as { message?: string; phone?: string; name?: string } | undefined;
+    const message = body?.message?.trim();
+    const phone = body?.phone?.trim();
+    if (!message || !phone) {
+      return reply.badRequest("Campos obrigatórios: phone e message");
     }
-    if (message.includes("pedido")) {
-      return reply.send({
-        reply: "Para criar pedido, envie os itens e quantidade. Posso montar um orçamento antes."
-      });
-    }
+    const result = await chatService.handleMockWhatsAppMessage({
+      phone,
+      message,
+      name: body?.name
+    });
     return reply.send({
-      reply: "Olá! Posso ajudar com catálogo, orçamento, pedido e pagamento."
+      reply: result.reply,
+      customer: result.customer
     });
   });
 
@@ -97,7 +93,7 @@ export const botRoutes: FastifyPluginAsync = async (app) => {
     const existingCustomer = await customerService.findByPhone(payload.phone);
     const customer = existingCustomer
       ? existingCustomer
-      : await customerService.upsertByPhone(payload.phone, `Cliente ${payload.phone}`);
+      : await customerService.upsertByPhone(payload.phone, { name: `Cliente ${payload.phone}` });
     const order = await orderService.createOrder({
       customerId: customer._id.toString(),
       items: payload.items

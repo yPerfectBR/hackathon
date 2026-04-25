@@ -4,16 +4,36 @@ services:
     container_name: fastify-template-api
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_started
     restart: unless-stopped
+
+  seed:
+    build: .
+    container_name: fastify-template-seed
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: ["npm", "run", "seed"]
+    restart: "no"
 
   frontend:
     build:
       context: ./frontend
     container_name: fastify-template-frontend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:80"
     depends_on:
@@ -27,7 +47,44 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://localhost:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: fastify-template-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  ollama-init:
+    image: curlimages/curl:8.12.1
+    container_name: fastify-template-ollama-init
+    depends_on:
+      - ollama
+    command: >
+      sh -c "
+      until curl -sf http://ollama:11434/api/tags > /dev/null; do
+        echo 'Aguardando Ollama...';
+        sleep 2;
+      done;
+      echo 'Baixando modelo AI_MODEL=${AI_MODEL:-llama3.2:3b}';
+      curl -s http://ollama:11434/api/pull
+      -H 'Content-Type: application/json'
+      -d '{\"name\":\"${AI_MODEL:-llama3.2:3b}\"}';
+      echo 'Modelo pronto.';
+      "
+    environment:
+      - AI_MODEL=${AI_MODEL:-llama3.2:3b}
+    restart: "no"
 
 volumes:
   mongo_data:
+  ollama_data:

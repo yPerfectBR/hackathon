@@ -8,6 +8,7 @@
     "build": "tsup src/server.ts --format cjs --dts --out-dir dist",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
+    "seed": "tsx scripts/seed-data.ts",
     "test:watch": "vitest",
     "lint": "eslint .",
     "docker:up": "docker compose up -d",
@@ -17,7 +18,8 @@
     "docker:build": "docker compose up -d --build",
     "docker:ps": "docker compose ps",
     "docker:clean": "docker compose down -v --remove-orphans",
-    "docker:endpoints": "./scripts/docker-endpoints.sh"
+    "docker:endpoints": "./scripts/docker-endpoints.sh",
+    "docker:reset-all": "./scripts/docker-reset-all.sh"
   },
   "repository": {
     "type": "git",

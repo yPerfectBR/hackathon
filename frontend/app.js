@@ -1,23 +1,51 @@
-const output = document.getElementById("output");
 const apiBaseUrlInput = document.getElementById("apiBaseUrl");
 const saveApiUrlBtn = document.getElementById("saveApiUrlBtn");
+const menuTabs = document.querySelectorAll("#menuTabs button");
+const screens = document.querySelectorAll(".screen");
+const productsTableBody = document.getElementById("productsTableBody");
+const customerLookupOutput = document.getElementById("customerLookupOutput");
+const salesOutput = document.getElementById("salesOutput");
+const chatMessages = document.getElementById("chatMessages");
+
+const chatPhone = document.getElementById("chatPhone");
+const chatName = document.getElementById("chatName");
+const chatMessageInput = document.getElementById("chatMessageInput");
+const sendChatBtn = document.getElementById("sendChatBtn");
+
+let salesChart;
+let productsChart;
 
 const savedBaseUrl = localStorage.getItem("apiBaseUrl");
-if (savedBaseUrl) {
-  apiBaseUrlInput.value = savedBaseUrl;
-}
+if (savedBaseUrl) apiBaseUrlInput.value = savedBaseUrl;
 
-saveApiUrlBtn.addEventListener("click", () => {
-  localStorage.setItem("apiBaseUrl", apiBaseUrlInput.value.trim());
-  writeOutput({ message: "Base URL salva." });
-});
+const savedChatPhone = localStorage.getItem("chatPhone");
+if (savedChatPhone) chatPhone.value = savedChatPhone;
+const savedChatName = localStorage.getItem("chatName");
+if (savedChatName) chatName.value = savedChatName;
 
 function getBaseUrl() {
   return (apiBaseUrlInput.value || "http://localhost:3000").trim();
 }
 
-function writeOutput(content) {
-  output.textContent = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+function value(form, name) {
+  return String(form.get(name) || "").trim();
+}
+
+function numberValue(form, name) {
+  return Number(form.get(name));
+}
+
+function setOutput(node, content) {
+  node.textContent = JSON.stringify(content, null, 2);
+}
+
+function setActiveScreen(screenName) {
+  screens.forEach((screen) => {
+    screen.classList.toggle("active", screen.id === `screen-${screenName}`);
+  });
+  menuTabs.forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.screen === screenName);
+  });
 }
 
 async function requestApi(path, options = {}) {
@@ -32,300 +60,234 @@ async function requestApi(path, options = {}) {
   } catch {
     body = text;
   }
-  writeOutput({
-    status: response.status,
-    path,
-    body
+  if (!response.ok) {
+    const message = body?.message || `Erro ${response.status}`;
+    throw new Error(message);
+  }
+  return body;
+}
+
+function appendChat(role, text) {
+  const el = document.createElement("div");
+  el.className = `chat-message ${role}`;
+  el.textContent = text;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function refreshProductsTable() {
+  const data = await requestApi("/products?page=1&limit=50");
+  productsTableBody.innerHTML = "";
+  data.items.forEach((item) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${item.code}</td>
+      <td>${item.name}</td>
+      <td>R$ ${Number(item.salePrice).toFixed(2)}</td>
+      <td>${item.stock - item.reservedStock}</td>
+    `;
+    productsTableBody.appendChild(tr);
   });
 }
 
-function value(form, name) {
-  return String(form.get(name) || "").trim();
+async function refreshDashboard() {
+  const [dashboard, sales, products] = await Promise.all([
+    requestApi("/management/dashboard"),
+    requestApi("/management/reports/sales"),
+    requestApi("/management/reports/products")
+  ]);
+
+  document.getElementById("metricOrders").textContent = dashboard.ordersTotal;
+  document.getElementById("metricRevenue").textContent = `R$ ${Number(dashboard.revenue).toFixed(2)}`;
+  document.getElementById("metricPending").textContent = dashboard.pendingFinance;
+  document.getElementById("metricLowStock").textContent = dashboard.lowStockProducts;
+
+  const salesLabels = sales.map((item) => `${item._id.month}/${item._id.year}`);
+  const salesValues = sales.map((item) => item.totalAmount);
+  const productsLabels = products.slice(0, 8).map((item) => item.name);
+  const productsValues = products.slice(0, 8).map((item) => item.quantitySold);
+
+  if (salesChart) salesChart.destroy();
+  salesChart = new Chart(document.getElementById("salesChart"), {
+    type: "line",
+    data: {
+      labels: salesLabels,
+      datasets: [{ label: "Vendas", data: salesValues, borderColor: "#3b82f6", tension: 0.2 }]
+    }
+  });
+
+  if (productsChart) productsChart.destroy();
+  productsChart = new Chart(document.getElementById("productsChart"), {
+    type: "bar",
+    data: {
+      labels: productsLabels,
+      datasets: [{ label: "Qtd vendida", data: productsValues, backgroundColor: "#1d4ed8" }]
+    }
+  });
 }
 
-function numberValue(form, name) {
-  return Number(form.get(name));
-}
-
-document.getElementById("createCustomerForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi("/customers", {
-    method: "POST",
-    body: JSON.stringify({
-      name: value(form, "name"),
-      phone: value(form, "phone"),
-      whatsapp: value(form, "phone"),
-      cpfCnpj: value(form, "cpfCnpj"),
-      address: {
-        street: value(form, "street"),
-        number: value(form, "number"),
-        district: value(form, "district"),
-        city: value(form, "city"),
-        state: value(form, "state"),
-        zipCode: value(form, "zipCode")
-      }
-    })
+menuTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    setActiveScreen(tab.dataset.screen);
   });
 });
 
-document.getElementById("findCustomerByPhoneForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/customers/phone/${value(form, "phone")}`);
+saveApiUrlBtn.addEventListener("click", () => {
+  localStorage.setItem("apiBaseUrl", getBaseUrl());
 });
 
-document.getElementById("listCustomerOrdersForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/customers/${value(form, "customerId")}/orders`);
+sendChatBtn.addEventListener("click", async () => {
+  const message = chatMessageInput.value.trim();
+  if (!message) return;
+  appendChat("user", message);
+  chatMessageInput.value = "";
+  localStorage.setItem("chatPhone", chatPhone.value.trim());
+  localStorage.setItem("chatName", chatName.value.trim());
+  try {
+    const data = await requestApi("/chat/mock-whatsapp/message", {
+      method: "POST",
+      body: JSON.stringify({
+        phone: chatPhone.value.trim(),
+        name: chatName.value.trim(),
+        message
+      })
+    });
+    appendChat("bot", data.reply || "Sem resposta");
+  } catch (error) {
+    appendChat("bot", `Erro: ${String(error.message || error)}`);
+  }
+});
+
+chatMessageInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void sendChatBtn.click();
+  }
+});
+
+document.getElementById("refreshDashboardBtn").addEventListener("click", async () => {
+  try {
+    await refreshDashboard();
+  } catch (error) {
+    alert(`Falha ao atualizar dashboard: ${error.message}`);
+  }
+});
+
+document.getElementById("refreshProductsBtn").addEventListener("click", async () => {
+  try {
+    await refreshProductsTable();
+  } catch (error) {
+    alert(`Falha ao listar produtos: ${error.message}`);
+  }
 });
 
 document.getElementById("createProductForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.target);
-  await requestApi("/products", {
-    method: "POST",
-    body: JSON.stringify({
-      code: value(form, "code"),
-      name: value(form, "name"),
-      basicDescription: value(form, "basicDescription"),
-      fullDescription: value(form, "fullDescription"),
-      imageUrl: value(form, "imageUrl"),
-      salePrice: numberValue(form, "salePrice"),
-      productionCost: numberValue(form, "productionCost"),
-      ncm: value(form, "ncm"),
-      stock: numberValue(form, "stock")
-    })
-  });
+  try {
+    await requestApi("/products", {
+      method: "POST",
+      body: JSON.stringify({
+        code: value(form, "code"),
+        name: value(form, "name"),
+        basicDescription: value(form, "basicDescription"),
+        fullDescription: value(form, "fullDescription"),
+        imageUrl: value(form, "imageUrl"),
+        salePrice: numberValue(form, "salePrice"),
+        productionCost: numberValue(form, "productionCost"),
+        ncm: value(form, "ncm"),
+        stock: numberValue(form, "stock")
+      })
+    });
+    event.target.reset();
+    await refreshProductsTable();
+  } catch (error) {
+    alert(`Falha ao criar produto: ${error.message}`);
+  }
 });
 
-document.getElementById("updateProductForm").addEventListener("submit", async (event) => {
+document.getElementById("createCustomerForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.target);
-  const payload = {};
-  if (value(form, "name")) payload.name = value(form, "name");
-  if (value(form, "salePrice")) payload.salePrice = numberValue(form, "salePrice");
-  if (value(form, "stock")) payload.stock = numberValue(form, "stock");
-  await requestApi(`/products/${value(form, "productId")}`, {
-    method: "PUT",
-    body: JSON.stringify(payload)
-  });
+  try {
+    const response = await requestApi("/customers", {
+      method: "POST",
+      body: JSON.stringify({
+        name: value(form, "name"),
+        phone: value(form, "phone"),
+        whatsapp: value(form, "phone"),
+        cpfCnpj: value(form, "cpfCnpj"),
+        address: {
+          street: value(form, "street"),
+          number: value(form, "number"),
+          district: value(form, "district"),
+          city: value(form, "city"),
+          state: value(form, "state"),
+          zipCode: value(form, "zipCode")
+        }
+      })
+    });
+    setOutput(customerLookupOutput, response);
+    event.target.reset();
+  } catch (error) {
+    alert(`Falha ao criar cliente: ${error.message}`);
+  }
 });
 
-document.getElementById("deleteProductForm").addEventListener("submit", async (event) => {
+document.getElementById("findCustomerByPhoneForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.target);
-  await requestApi(`/products/${value(form, "productId")}`, { method: "DELETE" });
-});
-
-document.getElementById("listProductsBtn").addEventListener("click", async () => {
-  await requestApi("/products");
+  try {
+    const response = await requestApi(`/customers/phone/${value(form, "phone")}`);
+    setOutput(customerLookupOutput, response);
+  } catch (error) {
+    setOutput(customerLookupOutput, { error: error.message });
+  }
 });
 
 document.getElementById("createQuoteForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.target);
   const discount = value(form, "discount");
-  await requestApi("/quotes", {
-    method: "POST",
-    body: JSON.stringify({
-      customerId: value(form, "customerId"),
-      items: [
-        {
+  try {
+    const response = await requestApi("/quotes", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId: value(form, "customerId"),
+        items: [{
           productId: value(form, "productId"),
           quantity: numberValue(form, "quantity"),
           ...(discount ? { discount: numberValue(form, "discount") } : {})
-        }
-      ]
-    })
-  });
+        }]
+      })
+    });
+    setOutput(salesOutput, response);
+  } catch (error) {
+    setOutput(salesOutput, { error: error.message });
+  }
 });
 
 document.getElementById("approveQuoteForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.target);
-  await requestApi(`/quotes/${value(form, "quoteId")}/approve`, {
-    method: "POST"
-  });
-});
-
-document.getElementById("createOrderForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi("/orders", {
-    method: "POST",
-    body: JSON.stringify({
-      customerId: value(form, "customerId"),
-      items: [
-        {
-          productId: value(form, "productId"),
-          quantity: numberValue(form, "quantity")
-        }
-      ]
-    })
-  });
-});
-
-document.getElementById("addOrderItemForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/orders/${value(form, "orderId")}/add-item`, {
-    method: "POST",
-    body: JSON.stringify({
-      productId: value(form, "productId"),
-      quantity: numberValue(form, "quantity")
-    })
-  });
-});
-
-document.getElementById("listOrdersByCustomerForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/orders/customer/${value(form, "customerId")}`);
-});
-
-document.getElementById("updateLogisticStatusForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/orders/${value(form, "orderId")}/logistic-status`, {
-    method: "PATCH",
-    body: JSON.stringify({ logisticStatus: value(form, "logisticStatus") })
-  });
+  try {
+    const response = await requestApi(`/quotes/${value(form, "quoteId")}/approve`, { method: "POST" });
+    setOutput(salesOutput, response);
+  } catch (error) {
+    setOutput(salesOutput, { error: error.message });
+  }
 });
 
 document.getElementById("payOrderForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.target);
-  await requestApi(`/payments/${value(form, "orderId")}/pay`, {
-    method: "POST"
-  });
+  try {
+    const response = await requestApi(`/payments/${value(form, "orderId")}/pay`, { method: "POST" });
+    setOutput(salesOutput, response);
+  } catch (error) {
+    setOutput(salesOutput, { error: error.message });
+  }
 });
 
-document.getElementById("listInventoryBtn").addEventListener("click", async () => {
-  await requestApi("/inventory");
-});
-
-document.getElementById("updateInventoryForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/inventory/${value(form, "productId")}`, {
-    method: "PATCH",
-    body: JSON.stringify({ stock: numberValue(form, "stock") })
-  });
-});
-
-document.getElementById("getFinanceForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/finance/${value(form, "orderId")}`);
-});
-
-document.getElementById("getFiscalForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/fiscal/${value(form, "orderId")}`);
-});
-
-document.getElementById("dashboardBtn").addEventListener("click", async () => {
-  await requestApi("/management/dashboard");
-});
-
-document.getElementById("salesReportBtn").addEventListener("click", async () => {
-  await requestApi("/management/reports/sales");
-});
-
-document.getElementById("delinquencyReportBtn").addEventListener("click", async () => {
-  await requestApi("/management/reports/delinquency");
-});
-
-document.getElementById("productsReportBtn").addEventListener("click", async () => {
-  await requestApi("/management/reports/products");
-});
-
-document.getElementById("botAssistForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi("/bot/assist", {
-    method: "POST",
-    body: JSON.stringify({ message: value(form, "message") })
-  });
-});
-
-document.getElementById("botListProductsForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  const page = value(form, "page") || "1";
-  const limit = value(form, "limit") || "10";
-  await requestApi(`/bot/products?page=${page}&limit=${limit}`);
-});
-
-document.getElementById("botCreateCustomerForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi("/bot/customers", {
-    method: "POST",
-    body: JSON.stringify({
-      phone: value(form, "phone"),
-      name: value(form, "name")
-    })
-  });
-});
-
-document.getElementById("botCreateQuoteForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi("/bot/quotes", {
-    method: "POST",
-    body: JSON.stringify({
-      phone: value(form, "phone"),
-      items: [
-        {
-          productId: value(form, "productId"),
-          quantity: numberValue(form, "quantity")
-        }
-      ]
-    })
-  });
-});
-
-document.getElementById("botApproveQuoteForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/bot/quotes/${value(form, "quoteId")}/approve`, {
-    method: "POST"
-  });
-});
-
-document.getElementById("botCreateOrderForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi("/bot/orders", {
-    method: "POST",
-    body: JSON.stringify({
-      phone: value(form, "phone"),
-      items: [
-        {
-          productId: value(form, "productId"),
-          quantity: numberValue(form, "quantity")
-        }
-      ]
-    })
-  });
-});
-
-document.getElementById("botCheckoutOrderForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/bot/orders/${value(form, "orderId")}/checkout`, {
-    method: "POST"
-  });
-});
-
-document.getElementById("botPayOrderForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  await requestApi(`/bot/orders/${value(form, "orderId")}/pay`, {
-    method: "POST"
-  });
-});
+void refreshProductsTable();
+void refreshDashboard();
